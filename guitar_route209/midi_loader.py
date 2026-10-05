@@ -4,6 +4,7 @@ import io
 from fractions import Fraction
 
 import mido
+import mido.midifiles.midifiles as _midifiles
 
 from .errors import MidiRejection
 
@@ -69,10 +70,17 @@ def load_midi(data, file_label):
         _reject("file exceeds 2 MiB limit", file_label)
     if not data:
         _reject("empty file", file_label)
+    # mido caps any single message at 1 MB, which falsely rejects legal
+    # SMFs carrying long text meta events; align the cap with the file
+    # limit while parsing.
+    previous_cap = _midifiles.MAX_MESSAGE_LENGTH
+    _midifiles.MAX_MESSAGE_LENGTH = MAX_FILE_BYTES
     try:
         mid = mido.MidiFile(file=io.BytesIO(data))
     except Exception as exc:
         _reject(f"not a valid Standard MIDI File: {exc}", file_label)
+    finally:
+        _midifiles.MAX_MESSAGE_LENGTH = previous_cap
     if mid.type == 2:
         _reject("SMF Type 2 is not supported", file_label)
     # SMPTE division has the high bit set; only positive PPQN is accepted.

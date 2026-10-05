@@ -82,9 +82,24 @@ def make_type2():
     mid.save(os.path.join(HERE, "bad_type2.mid"))
 
 
+def make_guitar():
+    # A short rehearsal melody playable on standard tuning
+    # (64/59/55/50/45/40): mixes open strings and fretted notes.
+    mid = mido.MidiFile(type=1, ticks_per_beat=PPQN)
+    tempo = mido.MidiTrack()
+    tempo.append(mido.MetaMessage("set_tempo", tempo=500000, time=0))
+    tempo.append(mido.MetaMessage("end_of_track", time=0))
+    mid.tracks.append(tempo)
+    mid.tracks.append(melody_track(
+        "guitar", [64, 62, 60, 62, 64, 64, 64, 62, 62, 62, 64, 67, 67,
+                   64, 62, 60, 62, 64, 64, 64, 64, 62, 62, 64, 62, 60]))
+    mid.save(os.path.join(HERE, "guitar.mid"))
+
+
 if __name__ == "__main__":
     make_reference()
     make_performance()
     make_bad_overlap()
     make_type2()
+    make_guitar()
     print("wrote examples/*.mid")
