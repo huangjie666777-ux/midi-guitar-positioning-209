@@ -11,13 +11,14 @@ class MidiRejection(Exception):
     """
 
     def __init__(self, message, file=None, track=None, event=None,
-                 action=None):
+                 action=None, note=None):
         super().__init__(message)
         self.message = message
         self.file = file
         self.track = track
         self.event = event
         self.action = action
+        self.note = note
 
     def to_detail(self):
         return {
@@ -26,4 +27,5 @@ class MidiRejection(Exception):
             "track": self.track,
             "event": self.event,
             "action": self.action,
+            "note": self.note,
         }

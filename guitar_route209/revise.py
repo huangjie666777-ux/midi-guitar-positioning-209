@@ -154,11 +154,16 @@ def plan_revision(actions, alignment, ref_notes, perf_notes, perf_tempo):
                   for op in ops if op["op"] == "insert_missed"]
     intervals.sort(key=lambda iv: (iv[0], iv[1]))
     prev_end = 0
+    prev_action = None
     for start, end, action in intervals:
         if start < prev_end:
+            # An inserted note starting before an existing one carries the
+            # action on the earlier interval; do not lose its location.
             _reject("resulting notes overlap on the selected channel",
-                    action=action)
-        prev_end = max(prev_end, end)
+                    action=action if action is not None else prev_action)
+        if end >= prev_end:
+            prev_end = end
+            prev_action = action
     return ops
 
 

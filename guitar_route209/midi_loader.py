@@ -13,6 +13,10 @@ MAX_EVENTS = 40000
 MAX_NOTES = 1024
 DEFAULT_TEMPO_US = 500000  # microseconds per quarter note
 
+# mido caps a single message at 1 MiB, which falsely rejects legal SMFs
+# with long text meta events; align the cap with the 2 MiB file limit.
+mido.midifiles.midifiles.MAX_MESSAGE_LENGTH = MAX_FILE_BYTES
+
 
 class Note:
     __slots__ = (

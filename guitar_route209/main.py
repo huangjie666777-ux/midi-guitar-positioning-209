@@ -6,6 +6,8 @@ from starlette.datastructures import UploadFile as StarletteUploadFile
 
 from .align import align
 from .errors import MidiRejection
+from .fingering import (annotate_midi, build_plan_zip, parse_open_strings,
+                        plan_fingering)
 from .midi_loader import (MAX_FILE_BYTES, build_timeline, extract_melody,
                           load_midi)
 from .revise import (apply_revision, build_revision_zip, parse_actions,
@@ -78,6 +80,35 @@ def _form_int(form, key, file_label):
     except (TypeError, ValueError):
         raise MidiRejection(f"form field {key} must be an integer",
                             file_label)
+
+
+@app.post("/plan")
+async def plan(request: Request):
+    # Parse the form ourselves with a 2 MiB part limit, matching /revise.
+    form = await request.form(max_part_size=MAX_FILE_BYTES)
+    upload = form.get("file")
+    if not isinstance(upload, StarletteUploadFile):
+        raise MidiRejection("missing SMF file", "file")
+
+    track = _form_int(form, "track", "file")
+    channel = _form_int(form, "channel", "file")
+    _check_selector(track, channel, "file")
+    raw_open = form.get("open_strings")
+    if isinstance(raw_open, StarletteUploadFile):
+        raw_open = (await raw_open.read()).decode("utf-8", "replace")
+    open_strings = parse_open_strings(raw_open)
+
+    data = await upload.read()
+    mid = load_midi(data, "file")
+    notes = extract_melody(mid, track, channel,
+                           build_timeline(mid, "file"), "file")
+    assignments, movement, changes = plan_fingering(notes, open_strings)
+    annotate_midi(mid, track, notes, assignments)
+    payload = build_plan_zip(data, mid, track, channel, open_strings,
+                             notes, assignments, movement, changes)
+    return Response(
+        content=payload, media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="plan.zip"'})
 
 
 @app.post("/revise")

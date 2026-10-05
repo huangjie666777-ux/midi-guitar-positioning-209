@@ -203,6 +203,29 @@ def test_reject_bad_actions_payload():
                   ).status_code == 422
 
 
+def test_overlap_insert_before_existing_keeps_action_location():
+    # The inserted note starts before the existing one it overlaps, so
+    # the offending action sits on the earlier interval and must still
+    # be located in the rejection.
+    ref = make_midi(tracks=[notes_track([60, 62, 67], dur=960, gap=480)])
+    perf_events = [
+        mido.Message("note_on", note=62, velocity=80, time=480,
+                     channel=0),
+        mido.Message("note_off", note=62, velocity=0, time=240,
+                     channel=0),
+        mido.Message("note_on", note=67, velocity=80, time=240,
+                     channel=0),
+        mido.Message("note_off", note=67, velocity=0, time=240,
+                     channel=0),
+    ]
+    perf = make_midi(tracks=[perf_events])
+    r = revise(ref, perf, [{"op": "insert_missed", "ref_index": 0}])
+    assert r.status_code == 422
+    d = r.json()["detail"]
+    assert d["action"] == 0
+    assert "overlap" in d["message"]
+
+
 def test_long_actions_text_within_2mib_accepted():
     # A legal long text field (>1 MiB, <2 MiB) must not be falsely
     # rejected by the multipart layer; padded JSON stays valid.

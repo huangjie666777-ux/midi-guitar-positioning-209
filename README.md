@@ -105,10 +105,49 @@ curl -s -F reference=@examples/reference.mid -F performance=@examples/performanc
 # {"detail":{"message":"conflicting actions for performance note 5",...,"action":1}}
 ```
 
+### POST /plan
+
+为单个 SMF 的指定轨道/通道单旋律做全曲指法规划，返回
+`application/zip`（含 `annotated.mid` 与 `plan.json`）；无解整次拒绝
+（422），不交付部分方案。
+
+multipart/form-data：
+
+| 字段 | 说明 |
+| --- | --- |
+| `file` | SMF 文件 |
+| `track` / `channel` | 0 起轨号 / 通道 0–15 |
+| `open_strings` | 可选，JSON 数组，六个 0–127 整数，覆盖 1–6 弦空弦音高（默认 `[64,59,55,50,45,40]`） |
+
+```bash
+curl -s -F file=@examples/plan_song.mid -F track=1 -F channel=0 \
+     http://127.0.0.1:8000/plan -o plan.zip
+```
+
+规则：
+
+- 品位 = 音高 − 空弦音高，仅 0–20 有效；把位 1–17，按弦品位须在
+  把位至把位加 3 内，空弦适用任意把位。
+- 每移动一品把位需 20ms。前音按弦时只能用其结束到后音开始的间隔
+  换把；前音为空弦时可从其开始换把。时间用精确有理数 tempo 换算，
+  等于所需时间即可达；首音把位自由。
+- 全局动态规划依次最小化总把位移动、换弦次数；仍同值时按
+  （弦号， 品位， 把位）三元组序列字典序取唯一解，不逐音贪心。
+- 无解时 `detail.note` 定位首个无候选或无可达状态的音符，
+  `detail.message` 说明原因。
+
+`plan.json` 含源文件与成品 SHA256、每音的索引、`start_tick`、
+弦/品/把位，以及 `total_position_movement` 与 `string_changes`
+总代价。`annotated.mid` 在所选轨每个原开音前同 tick 插入 `text`
+元事件（`plan: index=N string=S fret=F position=P`），保留原
+Type、PPQN、事件字段、绝对 tick 与相对顺序，成品同样受
+2 MiB / 40000 事件限制。
+
 ## 规则与边界
 
 - 文件：仅 SMF Type 0/1 且正 PPQN；拒绝 Type 2 与 SMPTE 时间格式。
   每文件 ≤ 2 MiB、≤ 32 轨、≤ 40000 事件；旋律 1–1024 音。
+- 单个 MIDI 消息长度上限与文件限制一致（2 MiB），合法长文本元事件不误拒。
 - 音符：累积 delta tick；选定通道正力度 `note_on` 开音，`note_off` 与
   零力度 `note_on` 关音；同 tick 先关再开。拒绝孤立关音、未闭合音、
   零时长音与任意重叠音（同音高或异音高）。其他通道与踏板等事件忽略。
@@ -125,6 +164,7 @@ curl -s -F reference=@examples/reference.mid -F performance=@examples/performanc
 - `guitar_route209/midi_loader.py`：SMF 解析、限量校验、tempo 时间线、旋律提取。
 - `guitar_route209/align.py`：动态规划对齐与错误分类。
 - `guitar_route209/revise.py`：动作解析校验、修订规划、SMF 改写与 ZIP/审计输出。
+- `guitar_route209/fingering.py`：全曲指法全局规划、注释 MIDI 与 ZIP 输出。
 - `guitar_route209/main.py`：FastAPI 路由与 422 定位响应。
 - `guitar_route209/errors.py`：携带文件/轨道/事件位置的拒绝异常。
 - `examples/make_examples.py`：生成 `reference.mid`、`performance.mid`

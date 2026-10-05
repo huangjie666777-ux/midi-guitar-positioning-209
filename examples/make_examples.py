@@ -82,9 +82,23 @@ def make_type2():
     mid.save(os.path.join(HERE, "bad_type2.mid"))
 
 
+def make_plan_song():
+    # A short exercise for /plan: open-string notes alternate with a
+    # pressed figure, leaving the DP real shift decisions.
+    mid = mido.MidiFile(type=1, ticks_per_beat=PPQN)
+    tempo = mido.MidiTrack()
+    tempo.append(mido.MetaMessage("set_tempo", tempo=500000, time=0))
+    tempo.append(mido.MetaMessage("end_of_track", time=0))
+    mid.tracks.append(tempo)
+    mid.tracks.append(melody_track(
+        "plan", [64, 67, 65, 64, 62, 60, 59, 55, 57, 59, 60, 64]))
+    mid.save(os.path.join(HERE, "plan_song.mid"))
+
+
 if __name__ == "__main__":
     make_reference()
     make_performance()
     make_bad_overlap()
     make_type2()
+    make_plan_song()
     print("wrote examples/*.mid")
