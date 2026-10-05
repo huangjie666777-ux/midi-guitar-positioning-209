@@ -1,0 +1,4 @@
+[
+  {"op": "fix_pitch", "perf_index": 2},
+  {"op": "delete_extra", "perf_index": 5}
+]
